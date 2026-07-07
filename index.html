@@ -179,9 +179,19 @@ let lastNav = { phase:'lobby', qIndex:0, revealed:false };
 
 // ---------- kvdb.io storage layer (no login required) ----------
 async function kvSet(key, value){
-  if(!BUCKET) return;
-  try{ await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`, { method:'POST', body:String(value) }); }
-  catch(e){ console.error('kv set failed', e); }
+  if(!BUCKET) return false;
+  try{
+    const r = await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`, { method:'POST', body:String(value) });
+    if(!r.ok){
+      const txt = await r.text().catch(()=> '');
+      console.error(`kvSet FAILED for key "${key}": HTTP ${r.status} — ${txt}`);
+      return false;
+    }
+    return true;
+  }catch(e){
+    console.error(`kvSet THREW for key "${key}":`, e);
+    return false;
+  }
 }
 async function kvGet(key){
   if(!BUCKET) return null;
@@ -299,23 +309,24 @@ async function createSession(){
 }
 async function publishProfiles(){
   if(!BUCKET){ alert('Create a game session first.'); return; }
-  // store each photo separately, in chunks under kvdb's 16KB limit
+  let allOk = true;
   for(const p of profiles){
     if(p.photo){
       const chunks = chunkString(p.photo, CHUNK_SIZE);
-      for(let i=0; i<chunks.length; i++){ await kvSet(`photo:${p.id}:${i}`, chunks[i]); }
-      await kvSet(`photo:${p.id}:count`, String(chunks.length));
+      for(let i=0; i<chunks.length; i++){ allOk = (await kvSet(`photo:${p.id}:${i}`, chunks[i])) && allOk; }
+      allOk = (await kvSet(`photo:${p.id}:count`, String(chunks.length))) && allOk;
       photoCache[p.id] = p.photo;
     } else {
-      await kvSet(`photo:${p.id}:count`, '0');
+      allOk = (await kvSet(`photo:${p.id}:count`, '0')) && allOk;
       photoCache[p.id] = null;
     }
   }
   const profilesNoPhotos = profiles.map(p=>({ ...p, photo: null }));
-  await kvSet('profiles', JSON.stringify(profilesNoPhotos));
-  await kvSet('questions', JSON.stringify(questions));
-  await kvSet('meta', JSON.stringify({title:document.getElementById('eventTitle').value, desc:document.getElementById('eventDesc').value}));
-  await kvSet('game-nav', JSON.stringify({phase:'lobby', qIndex:0, revealed:false}));
+  allOk = (await kvSet('profiles', JSON.stringify(profilesNoPhotos))) && allOk;
+  allOk = (await kvSet('questions', JSON.stringify(questions))) && allOk;
+  allOk = (await kvSet('meta', JSON.stringify({title:document.getElementById('eventTitle').value, desc:document.getElementById('eventDesc').value}))) && allOk;
+  allOk = (await kvSet('game-nav', JSON.stringify({phase:'lobby', qIndex:0, revealed:false}))) && allOk;
+  if(!allOk){ alert('Some data failed to save — check the browser console (F12) for "kvSet FAILED" or "kvSet THREW" messages and send those to Claude.'); }
   setRole('host');
 }
 
