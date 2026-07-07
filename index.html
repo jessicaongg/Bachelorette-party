@@ -280,8 +280,12 @@ function update(id, field, val){ profiles.find(p=>p.id===id)[field] = val; }
 // ---------- session / publish ----------
 async function createSession(){
   try{
-    const r = await fetch('https://kvdb.io/', { method:'POST', body:'' });
+    const r = await fetch('https://kvdb.io/', { method:'POST', body:'email=bachelorparty@example.com' });
     const id = (await r.text()).trim();
+    if(!id || id.includes(' ') || id.includes(':') || id.length > 40){
+      alert('Session creation failed: ' + id);
+      return;
+    }
     BUCKET = id;
     const newUrl = window.location.pathname + '?session=' + encodeURIComponent(id);
     history.replaceState(null, '', newUrl);
