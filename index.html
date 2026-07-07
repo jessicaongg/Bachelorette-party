@@ -211,12 +211,31 @@ function resizeImage(file, maxW){
         const canvas = document.createElement('canvas');
         canvas.width = img.width*scale; canvas.height = img.height*scale;
         canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
+}
+const CHUNK_SIZE = 12000; // stay safely under kvdb.io's 16KB per-value limit
+function chunkString(str, size){
+  const chunks = [];
+  for(let i=0; i<str.length; i+=size) chunks.push(str.slice(i, i+size));
+  return chunks;
+}
+const photoCache = {}; // avoid re-downloading photo chunks on every poll
+async function loadPhotos(){
+  for(const p of profiles){
+    if(photoCache[p.id] !== undefined){ p.photo = photoCache[p.id]; continue; }
+    const countStr = await kvGet(`photo:${p.id}:count`);
+    const count = countStr ? parseInt(countStr, 10) : 0;
+    if(!count){ photoCache[p.id] = null; p.photo = null; continue; }
+    let full = '';
+    for(let i=0; i<count; i++){ full += (await kvGet(`photo:${p.id}:${i}`)) || ''; }
+    photoCache[p.id] = full;
+    p.photo = full;
+  }
 }
 
 const HOST_PASSWORD = "wpxy";
@@ -272,7 +291,20 @@ async function createSession(){
 }
 async function publishProfiles(){
   if(!BUCKET){ alert('Create a game session first.'); return; }
-  await kvSet('profiles', JSON.stringify(profiles));
+  // store each photo separately, in chunks under kvdb's 16KB limit
+  for(const p of profiles){
+    if(p.photo){
+      const chunks = chunkString(p.photo, CHUNK_SIZE);
+      for(let i=0; i<chunks.length; i++){ await kvSet(`photo:${p.id}:${i}`, chunks[i]); }
+      await kvSet(`photo:${p.id}:count`, String(chunks.length));
+      photoCache[p.id] = p.photo;
+    } else {
+      await kvSet(`photo:${p.id}:count`, '0');
+      photoCache[p.id] = null;
+    }
+  }
+  const profilesNoPhotos = profiles.map(p=>({ ...p, photo: null }));
+  await kvSet('profiles', JSON.stringify(profilesNoPhotos));
   await kvSet('questions', JSON.stringify(questions));
   await kvSet('meta', JSON.stringify({title:document.getElementById('eventTitle').value, desc:document.getElementById('eventDesc').value}));
   await kvSet('game-nav', JSON.stringify({phase:'lobby', qIndex:0, revealed:false}));
@@ -307,6 +339,7 @@ async function renderHostScreen(){
   // fetch everything first — don't touch the DOM until data is ready
   const metaStr = await kvGet('meta');
   const pStr = await kvGet('profiles'); if(pStr) profiles = JSON.parse(pStr);
+  await loadPhotos();
   const qStr = await kvGet('questions'); if(qStr) questions = JSON.parse(qStr);
   const navStr = await kvGet('game-nav');
   if(navStr) lastNav = JSON.parse(navStr);
@@ -429,6 +462,7 @@ async function renderGuestScreen(){
   }
 
   const pStr = await kvGet('profiles'); if(pStr) profiles = JSON.parse(pStr);
+  await loadPhotos();
   const qStr = await kvGet('questions'); if(qStr) questions = JSON.parse(qStr);
   const navStr = await kvGet('game-nav'); if(navStr) lastNav = JSON.parse(navStr);
   if(lastNav.qIndex !== qIndex) myVoteThisQ = null;
