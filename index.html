@@ -16,7 +16,8 @@
   .top input{ font-family:'Playfair Display',serif; font-size:1.8rem; font-weight:900; text-align:center;
     border:none; background:transparent; color:var(--plum); width:100%; border-bottom:2px dashed var(--line); padding-bottom:6px; }
   .top input:focus{ outline:none; border-color:var(--pink); }
-  .top .desc{ text-align:center; border:none; background:transparent; color:#7a5a68; width:100%; font-size:0.95rem; margin-top:4px; }
+  .top .desc{ text-align:center; border:none; background:transparent; color:#7a5a68; width:100%; font-size:0.95rem; margin-top:4px;
+    font-family:'Nunito Sans',sans-serif; white-space:normal; word-wrap:break-word; resize:none; overflow:hidden; }
   .rolebar{ display:flex; justify-content:flex-end; margin-bottom:10px; gap:8px;}
   .rolebtn{ font-size:0.7rem; padding:5px 10px; opacity:0.6; border-radius:999px; border:2px solid var(--gold); background:transparent; color:var(--plum); font-weight:700; cursor:pointer; }
   .rolebtn.active{ background:var(--gold); opacity:1; }
@@ -73,7 +74,8 @@
 <div class="wrap">
   <div class="top">
     <input id="eventTitle" value="The Bachelors of Ruth's Big Day" />
-    <input class="desc" id="eventDesc" value="Scan in, pick your bachelor, and let's find out who's Most Likely To..." />
+    <textarea class="desc" id="eventDesc" rows="2">Pick your bachelor,
+let's find out....</textarea>
   </div>
   <div class="rolebar"><button class="rolebtn" id="hostBtn" onclick="setRole('host')">Host login</button></div>
 
@@ -182,8 +184,9 @@ async function kvSet(key, value){
   if(!BUCKET) return false;
   try{
     const r = await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`, { method:'POST', body:String(value) });
+    const txt = await r.text().catch(()=> '');
+    console.log(`kvSet key="${key}" status=${r.status} body="${txt.slice(0,200)}"`);
     if(!r.ok){
-      const txt = await r.text().catch(()=> '');
       console.error(`kvSet FAILED for key "${key}": HTTP ${r.status} — ${txt}`);
       return false;
     }
