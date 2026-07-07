@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Bachelors — Bridal Party Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{ --cream:#FFF8F1; --plum:#2E1A33; --pink:#FF5D8F; --gold:#E8B84B; --peach:#FFD9C7; --ink:#241220; --line: rgba(46,26,51,0.12); }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--cream); color:var(--ink); font-family:'Nunito Sans',sans-serif; min-height:100vh; }
+  h1,h2,h3{ font-family:'Playfair Display', serif; margin:0; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:28px 18px 80px; }
+  .top{ text-align:center; margin-bottom:18px; }
+  .top input{ font-family:'Playfair Display',serif; font-size:1.8rem; font-weight:900; text-align:center;
+    border:none; background:transparent; color:var(--plum); width:100%; border-bottom:2px dashed var(--line); padding-bottom:6px; }
+  .top input:focus{ outline:none; border-color:var(--pink); }
+  .top .desc{ text-align:center; border:none; background:transparent; color:#7a5a68; width:100%; font-size:0.95rem; margin-top:4px; }
+  .rolebar{ display:flex; justify-content:flex-end; margin-bottom:10px; gap:8px;}
+  .rolebtn{ font-size:0.7rem; padding:5px 10px; opacity:0.6; border-radius:999px; border:2px solid var(--gold); background:transparent; color:var(--plum); font-weight:700; cursor:pointer; }
+  .rolebtn.active{ background:var(--gold); opacity:1; }
+  .view{ display:none; } .view.active{ display:block; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
+  .editcard{ background:white; border-radius:18px; padding:14px; border:1px solid var(--line); box-shadow:0 6px 18px rgba(46,26,51,0.06); }
+  .photobox{ width:100%; aspect-ratio:1/1; border-radius:14px; background:var(--peach); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:10px; border:2px dashed var(--gold); }
+  .photobox img{ width:100%; height:100%; object-fit:cover; } .photobox span{ color:#a06b3a; font-size:0.8rem; text-align:center; padding:8px;}
+  .editcard input[type=file]{ display:none; }
+  .uploadbtn{ display:block; text-align:center; font-size:0.78rem; font-weight:700; color:var(--pink); cursor:pointer; margin-bottom:10px; }
+  .editcard input[type=text], .editcard textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:7px 9px; font-family:'Nunito Sans',sans-serif; margin-bottom:8px; font-size:0.87rem; }
+  .editcard label{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:#9a7a86; font-weight:700;}
+  .editcard textarea{ resize:vertical; min-height:44px; }
+  .pgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:18px; }
+  .pcard{ background:white; border-radius:20px; overflow:hidden; cursor:pointer; border:1px solid var(--line); box-shadow:0 8px 22px rgba(46,26,51,0.08); transition:transform 0.15s ease; position:relative; }
+  .pcard:hover{ transform:translateY(-4px) rotate(-1deg); }
+  .pcard .ph{ width:100%; aspect-ratio:4/5; background:var(--peach); } .pcard .ph img{ width:100%; height:100%; object-fit:cover; }
+  .pcard .info{ padding:10px 12px; } .pcard .info h3{ font-size:1.05rem; color:var(--plum); } .pcard .info p{ margin:2px 0 0; font-size:0.78rem; color:#8a6b78;}
+  .modal-bg{ display:none; position:fixed; inset:0; background:rgba(36,18,32,0.55); align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-bg.active{ display:flex; }
+  .modal{ background:var(--cream); max-width:420px; width:100%; border-radius:22px; overflow:hidden; max-height:90vh; overflow-y:auto; position:relative; }
+  .modal .ph{ width:100%; aspect-ratio:1/1; background:var(--peach);} .modal .ph img{ width:100%; height:100%; object-fit:cover;}
+  .modal .body{ padding:20px 22px 26px;} .modal h2{ color:var(--plum); font-size:1.4rem;}
+  .modal .tagline{ color:var(--pink); font-weight:700; margin:4px 0 14px; font-size:0.9rem;}
+  .stat{ margin-bottom:10px;} .stat .k{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:#9a7a86; font-weight:700;} .stat .v{ font-size:0.9rem; margin-top:2px;}
+  .closebtn{ position:absolute; top:12px; right:12px; background:white; border:none; border-radius:999px; width:34px; height:34px; font-size:1rem; cursor:pointer; }
+  .qbar{ background:var(--plum); color:var(--cream); border-radius:20px; padding:22px; text-align:center; margin-bottom:22px; }
+  .qbar .label{ font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); font-weight:700;}
+  .qbar h2{ font-size:1.35rem; margin-top:8px;}
+  .livecount{ font-size:0.85rem; color:var(--peach); margin-top:8px; font-weight:700;}
+  .votegrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; }
+  .vcard{ background:white; border-radius:16px; padding:10px; text-align:center; cursor:pointer; border:2px solid transparent; transition:0.15s; }
+  .vcard:hover{ border-color:var(--pink); } .vcard.mine{ border-color:var(--gold); background:var(--peach); }
+  .vcard .ph{ width:100%; aspect-ratio:1/1; border-radius:12px; background:var(--peach); overflow:hidden; margin-bottom:6px;}
+  .vcard .ph img{ width:100%; height:100%; object-fit:cover;} .vcard .name{ font-weight:700; font-size:0.85rem; color:var(--plum);}
+  .actionbtn{ background:var(--pink); color:white; border:none; border-radius:999px; padding:12px 28px; font-weight:700; font-size:1rem; cursor:pointer; margin-top:14px; }
+  .actionbtn:disabled{ background:#ccc; cursor:not-allowed; }
+  .resultwrap{ display:flex; gap:26px; flex-wrap:wrap; align-items:center; justify-content:center; margin-top:18px;}
+  .pie{ width:200px; height:200px; border-radius:50%; flex-shrink:0; }
+  .legend .row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:0.85rem;}
+  .swatch{ width:13px; height:13px; border-radius:4px; flex-shrink:0; }
+  .winnerbox{ margin-top:18px; text-align:center; width:100%; }
+  .winnerbox .ph{ width:130px; height:130px; border-radius:50%; overflow:hidden; margin:0 auto 8px; border:4px solid var(--gold);}
+  .winnerbox .ph img{ width:100%; height:100%; object-fit:cover;} .winnerbox h3{ color:var(--plum); font-size:1.2rem;}
+  .lobbybox{ text-align:center; background:white; border-radius:24px; padding:40px 20px; box-shadow:0 8px 22px rgba(46,26,51,0.08); }
+  #qrcode{ display:flex; justify-content:center; margin:18px 0; }
+  .joincount{ color:var(--pink); font-weight:700; margin-top:10px; font-size:1.1rem; }
+  .bigmsg{ text-align:center; padding:60px 20px; }
+  .bigmsg h2{ font-size:1.6rem; color:var(--plum); margin-bottom:10px;}
+  .smalllink{ font-size:0.75rem; color:#9a7a86; text-align:center; display:block; margin-top:16px; cursor:pointer; text-decoration:underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <input id="eventTitle" value="The Bachelors of [Bride]'s Big Day" />
+    <input class="desc" id="eventDesc" value="Scan in, pick your bachelor, and let's find out who's Most Likely To..." />
+  </div>
+  <div class="rolebar"><button class="rolebtn" id="hostBtn" onclick="setRole('host')">Host login</button></div>
+
+  <!-- SETUP (host, pre-event) -->
+  <div class="view active" id="view-setup">
+    <div class="grid" id="editGrid"></div>
+    <div style="text-align:center; margin-top:20px;">
+      <button class="actionbtn" onclick="publishProfiles()">🔒 Publish & Lock Profiles</button>
+    </div>
+  </div>
+
+  <!-- HOST PRESENT SCREEN -->
+  <div class="view" id="view-present">
+    <div id="hostNoSession" style="display:none; text-align:center;">
+      <div class="lobbybox">
+        <h2>Ready to start a game session?</h2>
+        <p style="color:#8a6b78; margin-top:8px;">This creates a fresh join code for tonight.</p>
+        <button class="actionbtn" onclick="createSession()">🎉 Create Game Session</button>
+      </div>
+    </div>
+    <div id="hostLobby" style="display:none;">
+      <div class="lobbybox">
+        <h2 id="hostTitleDisplay"></h2>
+        <p id="hostDescDisplay" style="color:#8a6b78; margin-top:8px;"></p>
+        <div id="qrcode"></div>
+        <div id="linkDisplay" style="font-size:0.8rem; color:#7a5a68; word-break:break-all; margin-top:6px;"></div>
+        <button class="rolebtn" style="margin-top:8px;" onclick="copyLink()">📋 Copy join link</button>
+        <div class="joincount" id="joinCount">0 joined</div>
+        <button class="actionbtn" onclick="goToProfiles()">View Profiles →</button>
+      </div>
+    </div>
+    <div id="hostGrid" style="display:none;">
+      <div class="pgrid" id="hostProfileGrid"></div>
+      <div style="text-align:center;"><button class="actionbtn" onclick="startGame()">▶ Start Game</button></div>
+    </div>
+    <div id="hostVoting" style="display:none;">
+      <div class="qbar">
+        <div class="label">Question <span id="qNum">1</span> / <span id="qTotal"></span></div>
+        <h2 id="qText"></h2>
+        <div class="livecount" id="liveCount"></div>
+      </div>
+      <div style="text-align:center;"><button class="actionbtn" id="revealBtn" onclick="reveal()">Reveal Results 🎉</button></div>
+      <div class="resultwrap" id="resultWrap" style="display:none;"></div>
+      <div style="text-align:center;"><button class="actionbtn" id="nextBtn" onclick="nextQ()" style="display:none;">Next Question →</button></div>
+    </div>
+    <span class="smalllink" onclick="showSetup()">⚙️ Edit profiles</span>
+  </div>
+
+  <!-- GUEST SCREEN -->
+  <div class="view" id="view-game">
+    <div id="noSessionGuest" class="bigmsg" style="display:none;"><h2>No active session</h2><p>Ask the host to share the join link or QR code.</p></div>
+    <div id="claimScreen" style="display:none;">
+      <div class="lobbybox">
+        <h2>Who are you?</h2>
+        <p style="color:#8a6b78;">Tap your bachelor identity</p>
+        <div class="pgrid" id="claimGrid" style="margin-top:16px;"></div>
+      </div>
+    </div>
+    <div id="waitingScreen" class="bigmsg" style="display:none;"><h2 id="waitingMsg">You're locked in!</h2><p>Waiting for the host…</p></div>
+    <div id="votingScreen" style="display:none;">
+      <div class="qbar">
+        <div class="label">Question <span id="gQNum">1</span> / <span id="gQTotal"></span></div>
+        <h2 id="gQText"></h2>
+      </div>
+      <div class="votegrid" id="voteGrid"></div>
+    </div>
+    <div id="guestResultScreen" style="display:none;">
+      <div class="resultwrap" id="guestResultWrap"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalContent"></div></div>
+
+<script>
+const NAMES = ["Chad","Brayden","Sebastian","Lorenzo","Kai","Maverick"];
+const COLORS = ["#FF5D8F","#E8B84B","#7BA88C","#8E7CC3","#4FA3D1","#E37B5B"];
+const SHARE_LINK = "https://claude.ai/public/artifacts/070fe404-3e93-416e-b660-0a78a399e024";
+const deviceId = 'dev' + Math.random().toString(36).slice(2,10);
+let role = 'guest';
+let myIdentity = null;
+let hostViewingProfiles = false;
+
+const urlParams = new URLSearchParams(window.location.search);
+let BUCKET = urlParams.get('session'); // kvdb.io bucket id = the game session
+
+let profiles = NAMES.map((n,i)=>({ id:i, photo:null, name:n, age:"", tagline:"", bio:"", lookingFor:"", funfact:"" }));
+let questions = [
+  "Most likely to hook up with a wedding guest before the night ends",
+  "Most likely to cry harder than the bride during the vows",
+  "Most likely to get drunk-texted by an ex mid-ceremony",
+  "Most likely to 'lose' the rings on purpose for the drama",
+  "Most likely to hijack the mic and turn the toast into a stand-up set",
+  "Most likely to get kicked out of the after-party",
+  "Most likely to be caught making out in the coat closet",
+  "Most likely to swipe right on the officiant",
+  "Most likely to start a conga line no one asked for",
+  "Most likely to accidentally reveal a secret in their speech",
+  "Most likely to end up on the dance floor shirtless",
+  "Most likely to still be single at the next wedding"
+];
+let qIndex = 0;
+let myVoteThisQ = null;
+let lastNav = { phase:'lobby', qIndex:0, revealed:false };
+
+// ---------- kvdb.io storage layer (no login required) ----------
+async function kvSet(key, value){
+  if(!BUCKET) return;
+  try{ await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`, { method:'POST', body:String(value) }); }
+  catch(e){ console.error('kv set failed', e); }
+}
+async function kvGet(key){
+  if(!BUCKET) return null;
+  try{
+    const r = await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`);
+    if(r.status===404) return null;
+    return await r.text();
+  }catch(e){ return null; }
+}
+async function kvList(prefix){
+  if(!BUCKET) return [];
+  try{
+    const r = await fetch(`https://kvdb.io/${BUCKET}/?prefix=${encodeURIComponent(prefix)}&format=json`);
+    if(!r.ok) return [];
+    const data = await r.json();
+    return Array.isArray(data) ? data : [];
+  }catch(e){ return []; }
+}
+
+function resizeImage(file, maxW){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, maxW/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const HOST_PASSWORD = "wpxy";
+function setRole(r){
+  if(r==='host' && role!=='host'){
+    const pw = prompt("Host password:");
+    if(pw !== HOST_PASSWORD){ alert("Wrong password."); return; }
+  }
+  role = r;
+  document.getElementById('hostBtn').classList.toggle('active', r==='host');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  if(r==='host'){ document.getElementById('view-present').classList.add('active'); renderHostScreen(); }
+  else { document.getElementById('view-game').classList.add('active'); renderGuestScreen(); }
+}
+function showSetup(){ document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById('view-setup').classList.add('active'); }
+
+function buildEditGrid(){
+  const grid = document.getElementById('editGrid'); grid.innerHTML = '';
+  profiles.forEach(p=>{
+    const card = document.createElement('div'); card.className='editcard';
+    card.innerHTML = `
+      <div class="photobox" id="photobox-${p.id}">${p.photo ? `<img src="${p.photo}">` : `<span>No photo yet<br>upload the genderbent pic</span>`}</div>
+      <label class="uploadbtn">📷 Upload photo<input type="file" accept="image/*" onchange="handlePhoto(event, ${p.id})"></label>
+      <label>Bachelor name</label><input type="text" value="${p.name}" oninput="update(${p.id},'name',this.value)">
+      <label>Age</label><input type="text" value="${p.age}" oninput="update(${p.id},'age',this.value)">
+      <label>Tagline</label><input type="text" value="${p.tagline}" oninput="update(${p.id},'tagline',this.value)">
+      <label>Bio</label><textarea oninput="update(${p.id},'bio',this.value)">${p.bio}</textarea>
+      <label>Looking for</label><input type="text" value="${p.lookingFor}" oninput="update(${p.id},'lookingFor',this.value)">
+      <label>Fun fact</label><input type="text" value="${p.funfact}" oninput="update(${p.id},'funfact',this.value)">
+    `;
+    grid.appendChild(card);
+  });
+}
+async function handlePhoto(e, id){
+  const file = e.target.files[0]; if(!file) return;
+  const dataUrl = await resizeImage(file, 500);
+  profiles.find(p=>p.id===id).photo = dataUrl;
+  document.getElementById(`photobox-${id}`).innerHTML = `<img src="${dataUrl}">`;
+}
+function update(id, field, val){ profiles.find(p=>p.id===id)[field] = val; }
+
+// ---------- session / publish ----------
+async function createSession(){
+  try{
+    const r = await fetch('https://kvdb.io/', { method:'POST', body:'' });
+    const id = (await r.text()).trim();
+    BUCKET = id;
+    const newUrl = window.location.pathname + '?session=' + encodeURIComponent(id);
+    history.replaceState(null, '', newUrl);
+    await publishProfiles();
+    renderHostScreen();
+  }catch(e){ alert('Could not create a session — check your internet connection and try again.'); }
+}
+async function publishProfiles(){
+  if(!BUCKET){ alert('Create a game session first.'); return; }
+  await kvSet('profiles', JSON.stringify(profiles));
+  await kvSet('questions', JSON.stringify(questions));
+  await kvSet('meta', JSON.stringify({title:document.getElementById('eventTitle').value, desc:document.getElementById('eventDesc').value}));
+  await kvSet('game-nav', JSON.stringify({phase:'lobby', qIndex:0, revealed:false}));
+  setRole('host');
+}
+
+function renderQR(){
+  const el = document.getElementById('qrcode');
+  if(!BUCKET) return;
+  const link = SHARE_LINK + '?session=' + encodeURIComponent(BUCKET);
+  document.getElementById('linkDisplay').textContent = link;
+  if(!window.QRCode) return;
+  if(el.dataset.rendered === BUCKET) return;
+  el.innerHTML='';
+  new QRCode(el, { text: link, width:180, height:180 });
+  el.dataset.rendered = BUCKET;
+}
+function copyLink(){
+  const link = SHARE_LINK + '?session=' + encodeURIComponent(BUCKET);
+  navigator.clipboard.writeText(link).then(()=>alert('Link copied!'));
+}
+
+// ---------- HOST auto screen ----------
+async function renderHostScreen(){
+  if(!BUCKET){
+    document.getElementById('hostNoSession').style.display='block';
+    document.getElementById('hostLobby').style.display='none';
+    document.getElementById('hostGrid').style.display='none';
+    document.getElementById('hostVoting').style.display='none';
+    return;
+  }
+
+  // fetch everything first — don't touch the DOM until data is ready
+  const metaStr = await kvGet('meta');
+  const pStr = await kvGet('profiles'); if(pStr) profiles = JSON.parse(pStr);
+  const qStr = await kvGet('questions'); if(qStr) questions = JSON.parse(qStr);
+  const navStr = await kvGet('game-nav');
+  if(navStr) lastNav = JSON.parse(navStr);
+  qIndex = lastNav.qIndex;
+  const claimKeys = await kvList('claim:');
+  let voteKeys = [];
+  if(lastNav.phase==='voting') voteKeys = await kvList(`vote:${qIndex}:`);
+  let pieHTML = '';
+  if(lastNav.phase==='voting' && lastNav.revealed) pieHTML = computePieHTML(await tallyVotes());
+
+  // now update the DOM in one pass
+  document.getElementById('hostNoSession').style.display='none';
+  document.getElementById('hostLobby').style.display='none';
+  document.getElementById('hostGrid').style.display='none';
+  document.getElementById('hostVoting').style.display='none';
+
+  if(metaStr){ const m = JSON.parse(metaStr); document.getElementById('hostTitleDisplay').textContent = m.title; document.getElementById('hostDescDisplay').textContent = m.desc; }
+
+  if(lastNav.phase==='lobby' && !hostViewingProfiles){
+    document.getElementById('hostLobby').style.display='block';
+    renderQR();
+    document.getElementById('joinCount').textContent = `${claimKeys.length} joined`;
+  } else if(lastNav.phase==='lobby' && hostViewingProfiles){
+    document.getElementById('hostGrid').style.display='block';
+    buildHostProfileGrid();
+  } else if(lastNav.phase==='voting'){
+    document.getElementById('hostVoting').style.display='block';
+    document.getElementById('qNum').textContent = qIndex+1;
+    document.getElementById('qTotal').textContent = questions.length;
+    document.getElementById('qText').textContent = questions[qIndex]||'';
+    document.getElementById('liveCount').textContent = `${voteKeys.length} vote${voteKeys.length!==1?'s':''} cast`;
+    if(lastNav.revealed){
+      document.getElementById('resultWrap').innerHTML = pieHTML;
+      document.getElementById('resultWrap').style.display='flex';
+      document.getElementById('nextBtn').style.display='inline-block';
+      document.getElementById('revealBtn').style.display='none';
+    } else {
+      document.getElementById('resultWrap').style.display='none';
+      document.getElementById('nextBtn').style.display='none';
+      document.getElementById('revealBtn').style.display='inline-block';
+    }
+  }
+}
+function goToProfiles(){ hostViewingProfiles = true; renderHostScreen(); }
+function buildHostProfileGrid(){
+  const grid = document.getElementById('hostProfileGrid'); grid.innerHTML='';
+  profiles.forEach(p=>{
+    const card = document.createElement('div'); card.className='pcard'; card.onclick=()=>openModal(p.id);
+    card.innerHTML = `<div class="ph">${p.photo?`<img src="${p.photo}">`:''}</div><div class="info"><h3>${p.name}${p.age?', '+p.age:''}</h3><p>${p.tagline||''}</p></div>`;
+    grid.appendChild(card);
+  });
+}
+function openModal(id){
+  const p = profiles.find(x=>x.id===id);
+  document.getElementById('modalContent').innerHTML = `
+    <button class="closebtn" onclick="closeModal()">✕</button>
+    <div class="ph">${p.photo?`<img src="${p.photo}">`:''}</div>
+    <div class="body"><h2>${p.name}${p.age?', '+p.age:''}</h2><div class="tagline">${p.tagline||''}</div>
+      <div class="stat"><div class="k">About</div><div class="v">${p.bio||'—'}</div></div>
+      <div class="stat"><div class="k">Looking for</div><div class="v">${p.lookingFor||'—'}</div></div>
+      <div class="stat"><div class="k">Fun fact</div><div class="v">${p.funfact||'—'}</div></div></div>`;
+  document.getElementById('modalBg').classList.add('active');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('active'); }
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+async function startGame(){ qIndex=0; await kvSet('game-nav', JSON.stringify({phase:'voting', qIndex:0, revealed:false})); renderHostScreen(); }
+async function nextQ(){ qIndex=(qIndex+1)%questions.length; await kvSet('game-nav', JSON.stringify({phase:'voting', qIndex, revealed:false})); renderHostScreen(); }
+
+function computePieHTML(counts){
+  const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
+  let start=0;
+  const stops = profiles.map((p,i)=>{ const pct=(counts[p.id]||0)/total*100; const seg=`${COLORS[i%COLORS.length]} ${start}% ${start+pct}%`; start+=pct; return seg; }).join(', ');
+  const legend = profiles.map((p,i)=>`<div class="row"><div class="swatch" style="background:${COLORS[i%COLORS.length]}"></div>${p.name} — ${counts[p.id]||0} vote${(counts[p.id]||0)!==1?'s':''}</div>`).join('');
+  const winner = profiles.reduce((a,b)=> (counts[b.id]||0)>(counts[a.id]||0) ? b : a, profiles[0]);
+  return `<div class="pie" style="background: conic-gradient(${stops});"></div>
+    <div class="legend">${legend}</div>
+    <div class="winnerbox"><div class="ph">${winner.photo?`<img src="${winner.photo}">`:''}</div><h3>👑 ${winner.name} wins this round!</h3></div>`;
+}
+async function tallyVotes(){
+  const keys = await kvList(`vote:${qIndex}:`);
+  const counts = {}; profiles.forEach(p=>counts[p.id]=0);
+  for(const k of keys){ const shortKey = k.split(':').pop(); const v = await kvGet(k); if(v!==null && counts[v]!==undefined) counts[v]++; }
+  return counts;
+}
+async function reveal(){
+  await kvSet('game-nav', JSON.stringify({phase:'voting', qIndex, revealed:true}));
+  renderHostScreen();
+}
+
+// ---------- GUEST ----------
+async function claimIdentity(profileId){ await kvSet(`claim:${deviceId}`, String(profileId)); myIdentity = profileId; renderGuestScreen(); }
+function buildClaimGrid(){
+  const grid = document.getElementById('claimGrid'); grid.innerHTML='';
+  profiles.forEach(p=>{
+    const card = document.createElement('div'); card.className='pcard'; card.onclick=()=>claimIdentity(p.id);
+    card.innerHTML = `<div class="ph">${p.photo?`<img src="${p.photo}">`:''}</div><div class="info"><h3>${p.name}</h3></div>`;
+    grid.appendChild(card);
+  });
+}
+function buildVoteGrid(){
+  const grid = document.getElementById('voteGrid'); grid.innerHTML='';
+  profiles.forEach(p=>{
+    const card = document.createElement('div'); card.className='vcard' + (myVoteThisQ===p.id?' mine':'');
+    card.onclick = ()=>castVote(p.id);
+    card.innerHTML = `<div class="ph">${p.photo?`<img src="${p.photo}">`:''}</div><div class="name">${p.name}</div>`;
+    grid.appendChild(card);
+  });
+}
+async function castVote(profileId){ myVoteThisQ = profileId; await kvSet(`vote:${qIndex}:${deviceId}`, String(profileId)); buildVoteGrid(); }
+
+async function renderGuestScreen(){
+  if(!BUCKET){
+    document.getElementById('noSessionGuest').style.display='block';
+    document.getElementById('claimScreen').style.display='none';
+    document.getElementById('waitingScreen').style.display='none';
+    document.getElementById('votingScreen').style.display='none';
+    document.getElementById('guestResultScreen').style.display='none';
+    return;
+  }
+
+  const pStr = await kvGet('profiles'); if(pStr) profiles = JSON.parse(pStr);
+  const qStr = await kvGet('questions'); if(qStr) questions = JSON.parse(qStr);
+  const navStr = await kvGet('game-nav'); if(navStr) lastNav = JSON.parse(navStr);
+  if(lastNav.qIndex !== qIndex) myVoteThisQ = null;
+  qIndex = lastNav.qIndex;
+  let pieHTML = '';
+  if(lastNav.phase==='voting' && lastNav.revealed) pieHTML = computePieHTML(await tallyVotes());
+
+  document.getElementById('noSessionGuest').style.display='none';
+  document.getElementById('claimScreen').style.display='none';
+  document.getElementById('waitingScreen').style.display='none';
+  document.getElementById('votingScreen').style.display='none';
+  document.getElementById('guestResultScreen').style.display='none';
+
+  if(myIdentity===null){ document.getElementById('claimScreen').style.display='block'; buildClaimGrid(); return; }
+  if(lastNav.phase==='voting' && !lastNav.revealed){
+    document.getElementById('votingScreen').style.display='block';
+    document.getElementById('gQNum').textContent=qIndex+1; document.getElementById('gQTotal').textContent=questions.length;
+    document.getElementById('gQText').textContent=questions[qIndex]||''; buildVoteGrid(); return;
+  }
+  if(lastNav.phase==='voting' && lastNav.revealed){
+    document.getElementById('guestResultScreen').style.display='block';
+    document.getElementById('guestResultWrap').innerHTML = pieHTML;
+    return;
+  }
+  document.getElementById('waitingScreen').style.display='block';
+  const me = profiles.find(p=>p.id===myIdentity);
+  document.getElementById('waitingMsg').textContent = `You're locked in as ${me?me.name:'...'}! Watch the host screen.`;
+}
+
+async function pollState(){
+  if(role==='host') await renderHostScreen();
+  else await renderGuestScreen();
+}
+
+buildEditGrid();
+setRole(BUCKET ? 'guest' : 'guest');
+setInterval(pollState, 2500);
+pollState();
+</script>
+</body>
+</html>
