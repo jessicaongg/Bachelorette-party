@@ -99,8 +99,6 @@
         <h2 id="hostTitleDisplay"></h2>
         <p id="hostDescDisplay" style="color:#8a6b78; margin-top:8px;"></p>
         <div id="qrcode"></div>
-        <div id="linkDisplay" style="font-size:0.8rem; color:#7a5a68; word-break:break-all; margin-top:6px;"></div>
-        <button class="rolebtn" style="margin-top:8px;" onclick="copyLink()">📋 Copy join link</button>
         <div class="joincount" id="joinCount">0 joined</div>
         <button class="actionbtn" onclick="goToProfiles()">View Profiles →</button>
       </div>
@@ -151,7 +149,7 @@
 <script>
 const NAMES = ["Chad","Brayden","Sebastian","Lorenzo","Kai","Maverick"];
 const COLORS = ["#FF5D8F","#E8B84B","#7BA88C","#8E7CC3","#4FA3D1","#E37B5B"];
-const SHARE_LINK = "https://claude.ai/public/artifacts/070fe404-3e93-416e-b660-0a78a399e024";
+const SHARE_LINK = "https://jessicaongg.github.io/Bachelorette-party/";
 const deviceId = 'dev' + Math.random().toString(36).slice(2,10);
 let role = 'guest';
 let myIdentity = null;
@@ -285,7 +283,6 @@ function renderQR(){
   const el = document.getElementById('qrcode');
   if(!BUCKET) return;
   const link = SHARE_LINK + '?session=' + encodeURIComponent(BUCKET);
-  document.getElementById('linkDisplay').textContent = link;
   if(!window.QRCode) return;
   if(el.dataset.rendered === BUCKET) return;
   el.innerHTML='';
