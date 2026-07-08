@@ -165,7 +165,7 @@ let hostViewingProfiles = false;
 const urlParams = new URLSearchParams(window.location.search);
 let BUCKET = urlParams.get('session'); // Firebase session path segment
 
-let profiles = NAMES.map((n,i)=>({ id:i, photo:null, name:n, age:"", tagline:"", bio:"", lookingFor:"", funfact:"" }));
+let profiles = NAMES.map((n,i)=>({ id:i, photo:null, name:n, age:"", job:"", tagline:"", bio:"", lookingFor:"", funfact:"", redFlags:"", greenFlags:"" }));
 let questions = [
   "Most likely to hook up with a wedding guest before the night ends",
   "Most likely to cry harder than the bride during the vows",
@@ -269,10 +269,13 @@ function buildEditGrid(){
       <label class="uploadbtn">📷 Upload photo<input type="file" accept="image/*" onchange="handlePhoto(event, ${p.id})"></label>
       <label>Bachelor name</label><input type="text" value="${p.name}" oninput="update(${p.id},'name',this.value)">
       <label>Age</label><input type="text" value="${p.age}" oninput="update(${p.id},'age',this.value)">
+      <label>Job</label><input type="text" value="${p.job}" oninput="update(${p.id},'job',this.value)">
       <label>Tagline</label><input type="text" value="${p.tagline}" oninput="update(${p.id},'tagline',this.value)">
       <label>Bio</label><textarea oninput="update(${p.id},'bio',this.value)">${p.bio}</textarea>
       <label>Looking for</label><input type="text" value="${p.lookingFor}" oninput="update(${p.id},'lookingFor',this.value)">
       <label>Fun fact</label><input type="text" value="${p.funfact}" oninput="update(${p.id},'funfact',this.value)">
+      <label>🚩 Red flags</label><input type="text" value="${p.redFlags}" oninput="update(${p.id},'redFlags',this.value)">
+      <label>🟢 Green flags</label><input type="text" value="${p.greenFlags}" oninput="update(${p.id},'greenFlags',this.value)">
     `;
     grid.appendChild(card);
   });
@@ -377,9 +380,13 @@ function openModal(id){
     <button class="closebtn" onclick="closeModal()">✕</button>
     <div class="ph">${p.photo?`<img src="${p.photo}">`:''}</div>
     <div class="body"><h2>${p.name}${p.age?', '+p.age:''}</h2><div class="tagline">${p.tagline||''}</div>
+      ${p.job?`<div class="stat"><div class="k">Job</div><div class="v">${p.job}</div></div>`:''}
       <div class="stat"><div class="k">About</div><div class="v">${p.bio||'—'}</div></div>
       <div class="stat"><div class="k">Looking for</div><div class="v">${p.lookingFor||'—'}</div></div>
-      <div class="stat"><div class="k">Fun fact</div><div class="v">${p.funfact||'—'}</div></div></div>`;
+      <div class="stat"><div class="k">Fun fact</div><div class="v">${p.funfact||'—'}</div></div>
+      ${p.redFlags?`<div class="stat"><div class="k">🚩 Red flags</div><div class="v">${p.redFlags}</div></div>`:''}
+      ${p.greenFlags?`<div class="stat"><div class="k">🟢 Green flags</div><div class="v">${p.greenFlags}</div></div>`:''}
+    </div>`;
   document.getElementById('modalBg').classList.add('active');
 }
 function closeModal(){ document.getElementById('modalBg').classList.remove('active'); }
@@ -463,6 +470,7 @@ async function renderGuestScreen(){
 }
 
 async function pollState(){
+  if(document.getElementById('view-setup').classList.contains('active')) return; // don't sync over active edits
   if(role==='host') await renderHostScreen();
   else await renderGuestScreen();
 }
