@@ -167,7 +167,11 @@ let myIdentity = null;
 let hostViewingProfiles = false;
 
 const urlParams = new URLSearchParams(window.location.search);
-let BUCKET = urlParams.get('session'); // Firebase session path segment
+let BUCKET = urlParams.get('session') || localStorage.getItem('bachelorGameSession');
+if(BUCKET && !urlParams.get('session')){
+  const newUrl = window.location.pathname + '?session=' + encodeURIComponent(BUCKET);
+  history.replaceState(null, '', newUrl);
+}
 
 let profiles = NAMES.map((n,i)=>({ id:i, photo:null, name:n, age:"", job:"", tagline:"", bio:"", lookingFor:"", funfact:"", redFlags:"", greenFlags:"" }));
 let questions = [
@@ -295,6 +299,7 @@ function update(id, field, val){ profiles.find(p=>p.id===id)[field] = val; }
 // ---------- session / publish ----------
 function createSession(){
   BUCKET = 'sess' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  localStorage.setItem('bachelorGameSession', BUCKET);
   const newUrl = window.location.pathname + '?session=' + encodeURIComponent(BUCKET);
   history.replaceState(null, '', newUrl);
   publishProfiles();
@@ -500,8 +505,21 @@ async function pollState(){
   else await renderGuestScreen();
 }
 
+async function loadExistingSessionIntoEditor(){
+  if(!BUCKET) return;
+  const p = await fbGet('profiles'); if(p) profiles = p;
+  const q = await fbGet('questions'); if(q) questions = q;
+  const meta = await fbGet('meta');
+  if(meta){
+    document.getElementById('eventTitle').value = meta.title;
+    document.getElementById('eventDesc').value = meta.desc;
+  }
+  buildEditGrid();
+}
+
 buildEditGrid();
 setRole('guest');
+loadExistingSessionIntoEditor();
 setInterval(pollState, 2500);
 pollState();
 </script>
