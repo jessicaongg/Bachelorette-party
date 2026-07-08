@@ -23,7 +23,7 @@
   .rolebtn.active{ background:var(--gold); opacity:1; }
   .view{ display:none; } .view.active{ display:block; }
   #hostNoSession, #hostLobby, #hostGrid, #hostVoting,
-  #noSessionGuest, #claimScreen, #waitingScreen, #votingScreen, #guestResultScreen {
+  #noSessionGuest, #claimScreen, #waitingScreen, #votingScreen, #voteLockedScreen, #guestResultScreen {
     transition: opacity 0.3s ease;
   }
   .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
@@ -44,9 +44,9 @@
   .modal-bg.active{ display:flex; }
   .modal{ background:var(--cream); max-width:420px; width:100%; border-radius:22px; overflow:hidden; max-height:90vh; overflow-y:auto; position:relative; }
   .modal .ph{ width:100%; aspect-ratio:1/1; background:var(--peach);} .modal .ph img{ width:100%; height:100%; object-fit:cover;}
-  .modal .body{ padding:20px 22px 26px;} .modal h2{ color:var(--plum); font-size:1.4rem;}
-  .modal .tagline{ color:var(--pink); font-weight:700; margin:4px 0 14px; font-size:0.9rem;}
-  .stat{ margin-bottom:10px;} .stat .k{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:#9a7a86; font-weight:700;} .stat .v{ font-size:0.9rem; margin-top:2px;}
+  .modal .body{ padding:24px 26px 30px;} .modal h2{ color:var(--plum); font-size:1.9rem; line-height:1.2;}
+  .modal .tagline{ color:var(--pink); font-weight:700; margin:8px 0 20px; font-size:1.15rem;}
+  .stat{ margin-bottom:16px;} .stat .k{ font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:#9a7a86; font-weight:700;} .stat .v{ font-size:1.15rem; margin-top:4px; line-height:1.4;}
   .closebtn{ position:absolute; top:12px; right:12px; background:white; border:none; border-radius:999px; width:34px; height:34px; font-size:1rem; cursor:pointer; }
   .qbar{ background:var(--plum); color:var(--cream); border-radius:20px; padding:22px; text-align:center; margin-bottom:22px; }
   .qbar .label{ font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); font-weight:700;}
@@ -62,12 +62,15 @@
   .actionbtn:active{ transform:translateY(0); }
   .actionbtn:disabled{ background:#ccc; cursor:not-allowed; }
   .resultwrap{ display:flex; gap:26px; flex-wrap:wrap; align-items:center; justify-content:center; margin-top:18px;}
-  .pie{ width:200px; height:200px; border-radius:50%; flex-shrink:0; }
+  .pie{ width:min(300px,80vw); height:min(300px,80vw); border-radius:50%; flex-shrink:0; position:relative; box-shadow:0 8px 30px rgba(46,26,51,0.15); }
+  .pie-label{ position:absolute; transform:translate(-50%,-50%); font-weight:800; font-size:1.2rem; color:white; text-shadow:0 2px 4px rgba(0,0,0,0.45); pointer-events:none; }
   .legend .row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:0.85rem;}
   .swatch{ width:13px; height:13px; border-radius:4px; flex-shrink:0; }
   .winnerbox{ margin-top:18px; text-align:center; width:100%; }
-  .winnerbox .ph{ width:130px; height:130px; border-radius:50%; overflow:hidden; margin:0 auto 8px; border:4px solid var(--gold);}
-  .winnerbox .ph img{ width:100%; height:100%; object-fit:cover;} .winnerbox h3{ color:var(--plum); font-size:1.2rem;}
+  .winnerbox .ph{ width:min(220px,55vw); height:min(220px,55vw); border-radius:50%; overflow:hidden; margin:0 auto 14px; border:5px solid var(--gold);
+    animation: winnerPop 0.7s cubic-bezier(0.34,1.56,0.64,1) both; box-shadow:0 10px 30px rgba(232,184,74,0.4); }
+  @keyframes winnerPop{ 0%{ transform:scale(0.15); opacity:0; } 70%{ transform:scale(1.12); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  .winnerbox .ph img{ width:100%; height:100%; object-fit:cover;} .winnerbox h3{ color:var(--plum); font-size:1.6rem; margin-top:6px;}
   .lobbybox{ text-align:center; background:white; border-radius:24px; padding:40px 20px; box-shadow:0 8px 22px rgba(46,26,51,0.08); }
   #qrcode{ display:flex; justify-content:center; margin:18px 0; }
   .joincount{ color:var(--pink); font-weight:700; margin-top:10px; font-size:1.1rem; }
@@ -143,6 +146,7 @@ let's find out who's most likely to....</textarea>
       </div>
       <div class="votegrid" id="voteGrid"></div>
     </div>
+    <div id="voteLockedScreen" class="bigmsg" style="display:none;"><h2>Vote locked in! 🔒</h2><p>Waiting for everyone else to vote...</p></div>
     <div id="guestResultScreen" style="display:none;">
       <div class="resultwrap" id="guestResultWrap"></div>
     </div>
@@ -207,7 +211,7 @@ function crossfade(sectionIds, targetId, tracker){
   tracker.value = targetId;
 }
 const hostSectionIds = ['hostNoSession','hostLobby','hostGrid','hostVoting'];
-const guestSectionIds = ['noSessionGuest','claimScreen','waitingScreen','votingScreen','guestResultScreen'];
+const guestSectionIds = ['noSessionGuest','claimScreen','waitingScreen','votingScreen','voteLockedScreen','guestResultScreen'];
 const hostTracker = { value: null };
 const guestTracker = { value: null };
 
@@ -397,11 +401,27 @@ async function nextQ(){ qIndex=(qIndex+1)%questions.length; await fbSet('nav', {
 
 function computePieHTML(counts){
   const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
-  let start=0;
-  const stops = profiles.map((p,i)=>{ const pct=(counts[p.id]||0)/total*100; const seg=`${COLORS[i%COLORS.length]} ${start}% ${start+pct}%`; start+=pct; return seg; }).join(', ');
-  const legend = profiles.map((p,i)=>`<div class="row"><div class="swatch" style="background:${COLORS[i%COLORS.length]}"></div>${p.name} — ${counts[p.id]||0} vote${(counts[p.id]||0)!==1?'s':''}</div>`).join('');
+  let startPct = 0;
+  const stops = [];
+  const labels = [];
+  profiles.forEach((p,i)=>{
+    const count = counts[p.id]||0;
+    const pct = count/total*100;
+    const endPct = startPct + pct;
+    stops.push(`${COLORS[i%COLORS.length]} ${startPct}% ${endPct}%`);
+    if(count>0){
+      const midDeg = ((startPct+endPct)/2) / 100 * 360;
+      const rad = midDeg * Math.PI/180;
+      const radius = 32; // % from center
+      const x = 50 + radius*Math.sin(rad);
+      const y = 50 - radius*Math.cos(rad);
+      labels.push(`<div class="pie-label" style="left:${x}%; top:${y}%;">${count}</div>`);
+    }
+    startPct = endPct;
+  });
+  const legend = profiles.map((p,i)=>`<div class="row"><div class="swatch" style="background:${COLORS[i%COLORS.length]}"></div>${p.name}</div>`).join('');
   const winner = profiles.reduce((a,b)=> (counts[b.id]||0)>(counts[a.id]||0) ? b : a, profiles[0]);
-  return `<div class="pie" style="background: conic-gradient(${stops});"></div>
+  return `<div class="pie" style="background: conic-gradient(${stops.join(', ')});">${labels.join('')}</div>
     <div class="legend">${legend}</div>
     <div class="winnerbox"><div class="ph">${winner.photo?`<img src="${winner.photo}">`:''}</div><h3>👑 ${winner.name} wins this round!</h3></div>`;
 }
@@ -434,7 +454,11 @@ function buildVoteGrid(){
     grid.appendChild(card);
   });
 }
-async function castVote(profileId){ myVoteThisQ = profileId; await fbSet(`votes/${qIndex}/${deviceId}`, profileId); buildVoteGrid(); }
+async function castVote(profileId){
+  myVoteThisQ = profileId;
+  await fbSet(`votes/${qIndex}/${deviceId}`, profileId);
+  crossfade(guestSectionIds, 'voteLockedScreen', guestTracker);
+}
 
 async function renderGuestScreen(){
   if(!BUCKET){
@@ -455,6 +479,7 @@ async function renderGuestScreen(){
 
   if(myIdentity===null){ crossfade(guestSectionIds, 'claimScreen', guestTracker); buildClaimGrid(); return; }
   if(lastNav.phase==='voting' && !lastNav.revealed){
+    if(myVoteThisQ !== null){ crossfade(guestSectionIds, 'voteLockedScreen', guestTracker); return; }
     crossfade(guestSectionIds, 'votingScreen', guestTracker);
     document.getElementById('gQNum').textContent=qIndex+1; document.getElementById('gQTotal').textContent=questions.length;
     document.getElementById('gQText').textContent=questions[qIndex]||''; buildVoteGrid(); return;
