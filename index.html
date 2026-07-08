@@ -22,6 +22,10 @@
   .rolebtn{ font-size:0.7rem; padding:5px 10px; opacity:0.6; border-radius:999px; border:2px solid var(--gold); background:transparent; color:var(--plum); font-weight:700; cursor:pointer; }
   .rolebtn.active{ background:var(--gold); opacity:1; }
   .view{ display:none; } .view.active{ display:block; }
+  #hostNoSession, #hostLobby, #hostGrid, #hostVoting,
+  #noSessionGuest, #claimScreen, #waitingScreen, #votingScreen, #guestResultScreen {
+    transition: opacity 0.3s ease;
+  }
   .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
   .editcard{ background:white; border-radius:18px; padding:14px; border:1px solid var(--line); box-shadow:0 6px 18px rgba(46,26,51,0.06); }
   .photobox{ width:100%; aspect-ratio:1/1; border-radius:14px; background:var(--peach); display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:10px; border:2px dashed var(--gold); }
@@ -49,11 +53,13 @@
   .qbar h2{ font-size:1.35rem; margin-top:8px;}
   .livecount{ font-size:0.85rem; color:var(--peach); margin-top:8px; font-weight:700;}
   .votegrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; }
-  .vcard{ background:white; border-radius:16px; padding:10px; text-align:center; cursor:pointer; border:2px solid transparent; transition:0.15s; }
-  .vcard:hover{ border-color:var(--pink); } .vcard.mine{ border-color:var(--gold); background:var(--peach); }
+  .vcard{ background:white; border-radius:16px; padding:10px; text-align:center; cursor:pointer; border:2px solid transparent; transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease; }
+  .vcard:hover{ border-color:var(--pink); transform:translateY(-2px); } .vcard.mine{ border-color:var(--gold); background:var(--peach); }
   .vcard .ph{ width:100%; aspect-ratio:1/1; border-radius:12px; background:var(--peach); overflow:hidden; margin-bottom:6px;}
   .vcard .ph img{ width:100%; height:100%; object-fit:cover;} .vcard .name{ font-weight:700; font-size:0.85rem; color:var(--plum);}
-  .actionbtn{ background:var(--pink); color:white; border:none; border-radius:999px; padding:12px 28px; font-weight:700; font-size:1rem; cursor:pointer; margin-top:14px; }
+  .actionbtn{ background:var(--pink); color:white; border:none; border-radius:999px; padding:12px 28px; font-weight:700; font-size:1rem; cursor:pointer; margin-top:14px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .actionbtn:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(255,93,143,0.35); }
+  .actionbtn:active{ transform:translateY(0); }
   .actionbtn:disabled{ background:#ccc; cursor:not-allowed; }
   .resultwrap{ display:flex; gap:26px; flex-wrap:wrap; align-items:center; justify-content:center; margin-top:18px;}
   .pie{ width:200px; height:200px; border-radius:50%; flex-shrink:0; }
@@ -79,7 +85,6 @@ let's find out who's most likely to....</textarea>
   </div>
   <div class="rolebar"><button class="rolebtn" id="hostBtn" onclick="setRole('host')">Host login</button></div>
 
-  <!-- SETUP (host, pre-event) -->
   <div class="view active" id="view-setup">
     <div class="grid" id="editGrid"></div>
     <div style="text-align:center; margin-top:20px;">
@@ -87,7 +92,6 @@ let's find out who's most likely to....</textarea>
     </div>
   </div>
 
-  <!-- HOST PRESENT SCREEN -->
   <div class="view" id="view-present">
     <div id="hostNoSession" style="display:none; text-align:center;">
       <div class="lobbybox">
@@ -122,7 +126,6 @@ let's find out who's most likely to....</textarea>
     <span class="smalllink" onclick="showSetup()">⚙️ Edit profiles</span>
   </div>
 
-  <!-- GUEST SCREEN -->
   <div class="view" id="view-game">
     <div id="noSessionGuest" class="bigmsg" style="display:none;"><h2>No active session</h2><p>Ask the host to share the join link or QR code.</p></div>
     <div id="claimScreen" style="display:none;">
@@ -152,13 +155,15 @@ let's find out who's most likely to....</textarea>
 const NAMES = ["Chad","Brayden","Sebastian","Lorenzo","Kai","Maverick"];
 const COLORS = ["#FF5D8F","#E8B84B","#7BA88C","#8E7CC3","#4FA3D1","#E37B5B"];
 const SHARE_LINK = "https://jessicaongg.github.io/Bachelorette-party/";
+const DB_URL = "https://bacherlorette-b97c6-default-rtdb.asia-southeast1.firebasedatabase.app";
+const HOST_PASSWORD = "wpxy";
 const deviceId = 'dev' + Math.random().toString(36).slice(2,10);
 let role = 'guest';
 let myIdentity = null;
 let hostViewingProfiles = false;
 
 const urlParams = new URLSearchParams(window.location.search);
-let BUCKET = urlParams.get('session'); // kvdb.io bucket id = the game session
+let BUCKET = urlParams.get('session'); // Firebase session path segment
 
 let profiles = NAMES.map((n,i)=>({ id:i, photo:null, name:n, age:"", tagline:"", bio:"", lookingFor:"", funfact:"" }));
 let questions = [
@@ -179,39 +184,49 @@ let qIndex = 0;
 let myVoteThisQ = null;
 let lastNav = { phase:'lobby', qIndex:0, revealed:false };
 
-// ---------- kvdb.io storage layer (no login required) ----------
-async function kvSet(key, value){
+// ---------- smooth section transitions ----------
+function crossfade(sectionIds, targetId, tracker){
+  if(tracker.value === targetId){
+    document.getElementById(targetId).style.display='block';
+    document.getElementById(targetId).style.opacity='1';
+    return;
+  }
+  sectionIds.forEach(id=>{
+    const el = document.getElementById(id);
+    if(id===targetId){
+      el.style.display='block';
+      el.style.opacity='0';
+      requestAnimationFrame(()=>{ el.style.opacity='1'; });
+    } else if(el.style.display !== 'none'){
+      el.style.opacity='0';
+      setTimeout(()=>{ el.style.display='none'; }, 300);
+    } else {
+      el.style.display='none';
+    }
+  });
+  tracker.value = targetId;
+}
+const hostSectionIds = ['hostNoSession','hostLobby','hostGrid','hostVoting'];
+const guestSectionIds = ['noSessionGuest','claimScreen','waitingScreen','votingScreen','guestResultScreen'];
+const hostTracker = { value: null };
+const guestTracker = { value: null };
+
+// ---------- Firebase Realtime Database storage layer (no login required, test mode) ----------
+async function fbSet(path, value){
   if(!BUCKET) return false;
   try{
-    const r = await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`, { method:'POST', body:String(value) });
-    const txt = await r.text().catch(()=> '');
-    console.log(`kvSet key="${key}" status=${r.status} body="${txt.slice(0,200)}"`);
-    if(!r.ok){
-      console.error(`kvSet FAILED for key "${key}": HTTP ${r.status} — ${txt}`);
-      return false;
-    }
+    const r = await fetch(`${DB_URL}/sessions/${BUCKET}/${path}.json`, { method:'PUT', body: JSON.stringify(value) });
+    if(!r.ok){ console.error(`fbSet FAILED for "${path}": HTTP ${r.status} — ${await r.text().catch(()=> '')}`); return false; }
     return true;
-  }catch(e){
-    console.error(`kvSet THREW for key "${key}":`, e);
-    return false;
-  }
+  }catch(e){ console.error(`fbSet THREW for "${path}":`, e); return false; }
 }
-async function kvGet(key){
+async function fbGet(path){
   if(!BUCKET) return null;
   try{
-    const r = await fetch(`https://kvdb.io/${BUCKET}/${encodeURIComponent(key)}`);
-    if(r.status===404) return null;
-    return await r.text();
+    const r = await fetch(`${DB_URL}/sessions/${BUCKET}/${path}.json`);
+    if(!r.ok) return null;
+    return await r.json();
   }catch(e){ return null; }
-}
-async function kvList(prefix){
-  if(!BUCKET) return [];
-  try{
-    const r = await fetch(`https://kvdb.io/${BUCKET}/?prefix=${encodeURIComponent(prefix)}&format=json`);
-    if(!r.ok) return [];
-    const data = await r.json();
-    return Array.isArray(data) ? data : [];
-  }catch(e){ return []; }
 }
 
 function resizeImage(file, maxW){
@@ -231,27 +246,7 @@ function resizeImage(file, maxW){
     reader.readAsDataURL(file);
   });
 }
-const CHUNK_SIZE = 12000; // stay safely under kvdb.io's 16KB per-value limit
-function chunkString(str, size){
-  const chunks = [];
-  for(let i=0; i<str.length; i+=size) chunks.push(str.slice(i, i+size));
-  return chunks;
-}
-const photoCache = {}; // avoid re-downloading photo chunks on every poll
-async function loadPhotos(){
-  for(const p of profiles){
-    if(photoCache[p.id] !== undefined){ p.photo = photoCache[p.id]; continue; }
-    const countStr = await kvGet(`photo:${p.id}:count`);
-    const count = countStr ? parseInt(countStr, 10) : 0;
-    if(!count){ photoCache[p.id] = null; p.photo = null; continue; }
-    let full = '';
-    for(let i=0; i<count; i++){ full += (await kvGet(`photo:${p.id}:${i}`)) || ''; }
-    photoCache[p.id] = full;
-    p.photo = full;
-  }
-}
 
-const HOST_PASSWORD = "wpxy";
 function setRole(r){
   if(r==='host' && role!=='host'){
     const pw = prompt("Host password:");
@@ -291,108 +286,70 @@ async function handlePhoto(e, id){
 function update(id, field, val){ profiles.find(p=>p.id===id)[field] = val; }
 
 // ---------- session / publish ----------
-async function createSession(){
-  try{
-    const r = await fetch('https://kvdb.io/', {
-      method:'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body:'email=jessicaong00@gmail.com'
-    });
-    const id = (await r.text()).trim();
-    if(!id || id.includes(' ') || id.includes(':') || id.length > 40){
-      alert('Session creation failed: ' + id);
-      return;
-    }
-    BUCKET = id;
-    const newUrl = window.location.pathname + '?session=' + encodeURIComponent(id);
-    history.replaceState(null, '', newUrl);
-    await publishProfiles();
-    renderHostScreen();
-  }catch(e){ alert('Could not create a session — check your internet connection and try again.'); }
+function createSession(){
+  BUCKET = 'sess' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const newUrl = window.location.pathname + '?session=' + encodeURIComponent(BUCKET);
+  history.replaceState(null, '', newUrl);
+  publishProfiles();
 }
 async function publishProfiles(){
   if(!BUCKET){ alert('Create a game session first.'); return; }
   let allOk = true;
-  for(const p of profiles){
-    if(p.photo){
-      const chunks = chunkString(p.photo, CHUNK_SIZE);
-      for(let i=0; i<chunks.length; i++){ allOk = (await kvSet(`photo:${p.id}:${i}`, chunks[i])) && allOk; }
-      allOk = (await kvSet(`photo:${p.id}:count`, String(chunks.length))) && allOk;
-      photoCache[p.id] = p.photo;
-    } else {
-      allOk = (await kvSet(`photo:${p.id}:count`, '0')) && allOk;
-      photoCache[p.id] = null;
-    }
-  }
-  const profilesNoPhotos = profiles.map(p=>({ ...p, photo: null }));
-  allOk = (await kvSet('profiles', JSON.stringify(profilesNoPhotos))) && allOk;
-  allOk = (await kvSet('questions', JSON.stringify(questions))) && allOk;
-  allOk = (await kvSet('meta', JSON.stringify({title:document.getElementById('eventTitle').value, desc:document.getElementById('eventDesc').value}))) && allOk;
-  allOk = (await kvSet('game-nav', JSON.stringify({phase:'lobby', qIndex:0, revealed:false}))) && allOk;
-  if(!allOk){ alert('Some data failed to save — check the browser console (F12) for "kvSet FAILED" or "kvSet THREW" messages and send those to Claude.'); }
+  allOk = (await fbSet('profiles', profiles)) && allOk;
+  allOk = (await fbSet('questions', questions)) && allOk;
+  allOk = (await fbSet('meta', {title:document.getElementById('eventTitle').value, desc:document.getElementById('eventDesc').value})) && allOk;
+  allOk = (await fbSet('nav', {phase:'lobby', qIndex:0, revealed:false})) && allOk;
+  if(!allOk){ alert('Some data failed to save — check the browser console (F12) for "fbSet FAILED" messages and send those to Claude.'); }
   setRole('host');
 }
 
 function renderQR(){
   const el = document.getElementById('qrcode');
-  if(!BUCKET) return;
-  const link = SHARE_LINK + '?session=' + encodeURIComponent(BUCKET);
-  if(!window.QRCode) return;
+  if(!BUCKET || !window.QRCode) return;
   if(el.dataset.rendered === BUCKET) return;
   el.innerHTML='';
+  const link = SHARE_LINK + '?session=' + encodeURIComponent(BUCKET);
   new QRCode(el, { text: link, width:180, height:180 });
   el.dataset.rendered = BUCKET;
-}
-function copyLink(){
-  const link = SHARE_LINK + '?session=' + encodeURIComponent(BUCKET);
-  navigator.clipboard.writeText(link).then(()=>alert('Link copied!'));
 }
 
 // ---------- HOST auto screen ----------
 async function renderHostScreen(){
   if(!BUCKET){
-    document.getElementById('hostNoSession').style.display='block';
-    document.getElementById('hostLobby').style.display='none';
-    document.getElementById('hostGrid').style.display='none';
-    document.getElementById('hostVoting').style.display='none';
+    crossfade(hostSectionIds, 'hostNoSession', hostTracker);
     return;
   }
 
-  // fetch everything first — don't touch the DOM until data is ready
-  const metaStr = await kvGet('meta');
-  const pStr = await kvGet('profiles'); if(pStr) profiles = JSON.parse(pStr);
-  await loadPhotos();
-  const qStr = await kvGet('questions'); if(qStr) questions = JSON.parse(qStr);
-  const navStr = await kvGet('game-nav');
-  if(navStr) lastNav = JSON.parse(navStr);
+  const meta = await fbGet('meta');
+  const p = await fbGet('profiles'); if(p) profiles = p;
+  const q = await fbGet('questions'); if(q) questions = q;
+  const nav = await fbGet('nav'); if(nav) lastNav = nav;
   qIndex = lastNav.qIndex;
-  const claimKeys = await kvList('claim:');
-  let voteKeys = [];
-  if(lastNav.phase==='voting') voteKeys = await kvList(`vote:${qIndex}:`);
+  const claims = await fbGet('claims') || {};
+  const claimCount = Object.keys(claims).length;
+  let voteCount = 0;
   let pieHTML = '';
-  if(lastNav.phase==='voting' && lastNav.revealed) pieHTML = computePieHTML(await tallyVotes());
+  if(lastNav.phase==='voting'){
+    const votes = await fbGet(`votes/${qIndex}`) || {};
+    voteCount = Object.keys(votes).length;
+    if(lastNav.revealed) pieHTML = computePieHTML(tallyFromVotes(votes));
+  }
 
-  // now update the DOM in one pass
-  document.getElementById('hostNoSession').style.display='none';
-  document.getElementById('hostLobby').style.display='none';
-  document.getElementById('hostGrid').style.display='none';
-  document.getElementById('hostVoting').style.display='none';
-
-  if(metaStr){ const m = JSON.parse(metaStr); document.getElementById('hostTitleDisplay').textContent = m.title; document.getElementById('hostDescDisplay').textContent = m.desc; }
+  if(meta){ document.getElementById('hostTitleDisplay').textContent = meta.title; document.getElementById('hostDescDisplay').textContent = meta.desc; }
 
   if(lastNav.phase==='lobby' && !hostViewingProfiles){
-    document.getElementById('hostLobby').style.display='block';
+    crossfade(hostSectionIds, 'hostLobby', hostTracker);
     renderQR();
-    document.getElementById('joinCount').textContent = `${claimKeys.length} joined`;
+    document.getElementById('joinCount').textContent = `${claimCount} joined`;
   } else if(lastNav.phase==='lobby' && hostViewingProfiles){
-    document.getElementById('hostGrid').style.display='block';
+    crossfade(hostSectionIds, 'hostGrid', hostTracker);
     buildHostProfileGrid();
   } else if(lastNav.phase==='voting'){
-    document.getElementById('hostVoting').style.display='block';
+    crossfade(hostSectionIds, 'hostVoting', hostTracker);
     document.getElementById('qNum').textContent = qIndex+1;
     document.getElementById('qTotal').textContent = questions.length;
     document.getElementById('qText').textContent = questions[qIndex]||'';
-    document.getElementById('liveCount').textContent = `${voteKeys.length} vote${voteKeys.length!==1?'s':''} cast`;
+    document.getElementById('liveCount').textContent = `${voteCount} vote${voteCount!==1?'s':''} cast`;
     if(lastNav.revealed){
       document.getElementById('resultWrap').innerHTML = pieHTML;
       document.getElementById('resultWrap').style.display='flex';
@@ -428,8 +385,8 @@ function openModal(id){
 function closeModal(){ document.getElementById('modalBg').classList.remove('active'); }
 document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
 
-async function startGame(){ qIndex=0; await kvSet('game-nav', JSON.stringify({phase:'voting', qIndex:0, revealed:false})); renderHostScreen(); }
-async function nextQ(){ qIndex=(qIndex+1)%questions.length; await kvSet('game-nav', JSON.stringify({phase:'voting', qIndex, revealed:false})); renderHostScreen(); }
+async function startGame(){ qIndex=0; await fbSet('nav', {phase:'voting', qIndex:0, revealed:false}); renderHostScreen(); }
+async function nextQ(){ qIndex=(qIndex+1)%questions.length; await fbSet('nav', {phase:'voting', qIndex, revealed:false}); renderHostScreen(); }
 
 function computePieHTML(counts){
   const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
@@ -441,19 +398,18 @@ function computePieHTML(counts){
     <div class="legend">${legend}</div>
     <div class="winnerbox"><div class="ph">${winner.photo?`<img src="${winner.photo}">`:''}</div><h3>👑 ${winner.name} wins this round!</h3></div>`;
 }
-async function tallyVotes(){
-  const keys = await kvList(`vote:${qIndex}:`);
+function tallyFromVotes(votesObj){
   const counts = {}; profiles.forEach(p=>counts[p.id]=0);
-  for(const k of keys){ const shortKey = k.split(':').pop(); const v = await kvGet(k); if(v!==null && counts[v]!==undefined) counts[v]++; }
+  Object.values(votesObj).forEach(v=>{ if(counts[v]!==undefined) counts[v]++; });
   return counts;
 }
 async function reveal(){
-  await kvSet('game-nav', JSON.stringify({phase:'voting', qIndex, revealed:true}));
+  await fbSet('nav', {phase:'voting', qIndex, revealed:true});
   renderHostScreen();
 }
 
 // ---------- GUEST ----------
-async function claimIdentity(profileId){ await kvSet(`claim:${deviceId}`, String(profileId)); myIdentity = profileId; renderGuestScreen(); }
+async function claimIdentity(profileId){ await fbSet(`claims/${deviceId}`, profileId); myIdentity = profileId; renderGuestScreen(); }
 function buildClaimGrid(){
   const grid = document.getElementById('claimGrid'); grid.innerHTML='';
   profiles.forEach(p=>{
@@ -471,46 +427,38 @@ function buildVoteGrid(){
     grid.appendChild(card);
   });
 }
-async function castVote(profileId){ myVoteThisQ = profileId; await kvSet(`vote:${qIndex}:${deviceId}`, String(profileId)); buildVoteGrid(); }
+async function castVote(profileId){ myVoteThisQ = profileId; await fbSet(`votes/${qIndex}/${deviceId}`, profileId); buildVoteGrid(); }
 
 async function renderGuestScreen(){
   if(!BUCKET){
-    document.getElementById('noSessionGuest').style.display='block';
-    document.getElementById('claimScreen').style.display='none';
-    document.getElementById('waitingScreen').style.display='none';
-    document.getElementById('votingScreen').style.display='none';
-    document.getElementById('guestResultScreen').style.display='none';
+    crossfade(guestSectionIds, 'noSessionGuest', guestTracker);
     return;
   }
 
-  const pStr = await kvGet('profiles'); if(pStr) profiles = JSON.parse(pStr);
-  await loadPhotos();
-  const qStr = await kvGet('questions'); if(qStr) questions = JSON.parse(qStr);
-  const navStr = await kvGet('game-nav'); if(navStr) lastNav = JSON.parse(navStr);
+  const p = await fbGet('profiles'); if(p) profiles = p;
+  const q = await fbGet('questions'); if(q) questions = q;
+  const nav = await fbGet('nav'); if(nav) lastNav = nav;
   if(lastNav.qIndex !== qIndex) myVoteThisQ = null;
   qIndex = lastNav.qIndex;
   let pieHTML = '';
-  if(lastNav.phase==='voting' && lastNav.revealed) pieHTML = computePieHTML(await tallyVotes());
+  if(lastNav.phase==='voting' && lastNav.revealed){
+    const votes = await fbGet(`votes/${qIndex}`) || {};
+    pieHTML = computePieHTML(tallyFromVotes(votes));
+  }
 
-  document.getElementById('noSessionGuest').style.display='none';
-  document.getElementById('claimScreen').style.display='none';
-  document.getElementById('waitingScreen').style.display='none';
-  document.getElementById('votingScreen').style.display='none';
-  document.getElementById('guestResultScreen').style.display='none';
-
-  if(myIdentity===null){ document.getElementById('claimScreen').style.display='block'; buildClaimGrid(); return; }
+  if(myIdentity===null){ crossfade(guestSectionIds, 'claimScreen', guestTracker); buildClaimGrid(); return; }
   if(lastNav.phase==='voting' && !lastNav.revealed){
-    document.getElementById('votingScreen').style.display='block';
+    crossfade(guestSectionIds, 'votingScreen', guestTracker);
     document.getElementById('gQNum').textContent=qIndex+1; document.getElementById('gQTotal').textContent=questions.length;
     document.getElementById('gQText').textContent=questions[qIndex]||''; buildVoteGrid(); return;
   }
   if(lastNav.phase==='voting' && lastNav.revealed){
-    document.getElementById('guestResultScreen').style.display='block';
+    crossfade(guestSectionIds, 'guestResultScreen', guestTracker);
     document.getElementById('guestResultWrap').innerHTML = pieHTML;
     return;
   }
-  document.getElementById('waitingScreen').style.display='block';
-  const me = profiles.find(p=>p.id===myIdentity);
+  crossfade(guestSectionIds, 'waitingScreen', guestTracker);
+  const me = profiles.find(pr=>pr.id===myIdentity);
   document.getElementById('waitingMsg').textContent = `You're locked in as ${me?me.name:'...'}! Watch the host screen.`;
 }
 
@@ -520,7 +468,7 @@ async function pollState(){
 }
 
 buildEditGrid();
-setRole(BUCKET ? 'guest' : 'guest');
+setRole('guest');
 setInterval(pollState, 2500);
 pollState();
 </script>
