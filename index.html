@@ -35,14 +35,17 @@
   .editcard input[type=text], .editcard textarea{ width:100%; border:1px solid var(--line); border-radius:8px; padding:7px 9px; font-family:'Nunito Sans',sans-serif; margin-bottom:8px; font-size:0.87rem; }
   .editcard label{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:#9a7a86; font-weight:700;}
   .editcard textarea{ resize:vertical; min-height:44px; }
-  .pgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:18px; }
+  .pgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; }
   .pcard{ background:white; border-radius:20px; overflow:hidden; cursor:pointer; border:1px solid var(--line); box-shadow:0 8px 22px rgba(46,26,51,0.08); transition:transform 0.15s ease; position:relative; }
   .pcard:hover{ transform:translateY(-4px) rotate(-1deg); }
-  .pcard .ph{ width:100%; aspect-ratio:4/5; background:var(--peach); } .pcard .ph img{ width:100%; height:100%; object-fit:cover; }
+  .pcard .ph{ width:100%; aspect-ratio:3/2; background:var(--peach); } .pcard .ph img{ width:100%; height:100%; object-fit:cover; }
   .pcard .info{ padding:10px 12px; } .pcard .info h3{ font-size:1.05rem; color:var(--plum); } .pcard .info p{ margin:2px 0 0; font-size:0.78rem; color:#8a6b78;}
-  .modal-bg{ display:none; position:fixed; inset:0; background:rgba(36,18,32,0.55); align-items:center; justify-content:center; z-index:50; padding:20px; }
-  .modal-bg.active{ display:flex; }
-  .modal{ background:var(--cream); max-width:420px; width:100%; border-radius:22px; overflow:hidden; max-height:90vh; overflow-y:auto; position:relative; }
+  .modal-bg{ display:none; position:fixed; inset:0; background:rgba(36,18,32,0.55); align-items:center; justify-content:center; z-index:50; padding:20px;
+    opacity:0; transition:opacity 0.25s ease; }
+  .modal-bg.active{ display:flex; opacity:1; }
+  .modal{ background:var(--cream); max-width:560px; width:100%; border-radius:22px; overflow:hidden; max-height:90vh; overflow-y:auto; position:relative;
+    transform:scale(0.92); transition:transform 0.3s cubic-bezier(0.22,1,0.36,1); }
+  .modal-bg.active .modal{ transform:scale(1); }
   .modal .ph{ width:100%; aspect-ratio:1/1; background:var(--peach);} .modal .ph img{ width:100%; height:100%; object-fit:cover;}
   .modal .body{ padding:24px 26px 30px;} .modal h2{ color:var(--plum); font-size:1.9rem; line-height:1.2;}
   .modal .tagline{ color:var(--pink); font-weight:700; margin:8px 0 20px; font-size:1.15rem;}
@@ -50,7 +53,9 @@
   .closebtn{ position:absolute; top:12px; right:12px; background:white; border:none; border-radius:999px; width:34px; height:34px; font-size:1rem; cursor:pointer; }
   .qbar{ background:var(--plum); color:var(--cream); border-radius:20px; padding:22px; text-align:center; margin-bottom:22px; }
   .qbar .label{ font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); font-weight:700;}
-  .qbar h2{ font-size:1.35rem; margin-top:8px;}
+  .qbar h2.mainprompt{ font-size:1.1rem; margin-top:8px; opacity:0.85; }
+  .qbar .questionfragment{ font-size:1.7rem; font-weight:700; margin:6px 0 0; font-family:'Playfair Display', serif; transition:opacity 0.25s ease; }
+  #revealBtn, #nextBtn{ transition:opacity 0.3s ease; }
   .livecount{ font-size:0.85rem; color:var(--peach); margin-top:8px; font-weight:700;}
   .votegrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; }
   .vcard{ background:white; border-radius:16px; padding:10px; text-align:center; cursor:pointer; border:2px solid transparent; transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease; }
@@ -83,7 +88,7 @@
 <body>
 <div class="wrap">
   <div class="top" id="topBar">
-    <input id="eventTitle" value="The Bachelors of Ruth's Big Day" />
+    <input id="eventTitle" value="Meet Ruth's Bridesmen" />
     <textarea class="desc" id="eventDesc" rows="2">Pick your bachelor,
 let's find out who's most likely to....</textarea>
   </div>
@@ -114,13 +119,15 @@ let's find out who's most likely to....</textarea>
       </div>
     </div>
     <div id="hostGrid" style="display:none;">
+      <h2 style="text-align:center; margin-bottom:20px;">Meet the Bachelors</h2>
       <div class="pgrid" id="hostProfileGrid"></div>
       <div style="text-align:center;"><button class="actionbtn" onclick="startGame()">▶ Start Game</button></div>
     </div>
     <div id="hostVoting" style="display:none;">
       <div class="qbar">
         <div class="label">Question <span id="qNum">1</span> / <span id="qTotal"></span></div>
-        <h2 id="qText"></h2>
+        <h2 class="mainprompt">Who is most likely to...</h2>
+        <p class="questionfragment" id="qText"></p>
         <div class="livecount" id="liveCount"></div>
       </div>
       <div style="text-align:center;"><button class="actionbtn" id="revealBtn" onclick="reveal()">Reveal Results 🎉</button></div>
@@ -144,7 +151,8 @@ let's find out who's most likely to....</textarea>
     <div id="votingScreen" style="display:none;">
       <div class="qbar">
         <div class="label">Question <span id="gQNum">1</span> / <span id="gQTotal"></span></div>
-        <h2 id="gQText"></h2>
+        <h2 class="mainprompt">Who is most likely to...</h2>
+        <p class="questionfragment" id="gQText"></p>
       </div>
       <div class="votegrid" id="voteGrid"></div>
     </div>
@@ -176,19 +184,17 @@ if(BUCKET && !urlParams.get('session')){
 }
 
 let profiles = NAMES.map((n,i)=>({ id:i, photo:null, name:n, age:"", job:"", tagline:"", bio:"", lookingFor:"", funfact:"", redFlags:"", greenFlags:"" }));
+const MAIN_PROMPT = "Who is most likely to...";
 let questions = [
-  "Most likely to hook up with a wedding guest before the night ends",
-  "Most likely to cry harder than the bride during the vows",
-  "Most likely to get drunk-texted by an ex mid-ceremony",
-  "Most likely to 'lose' the rings on purpose for the drama",
-  "Most likely to hijack the mic and turn the toast into a stand-up set",
-  "Most likely to get kicked out of the after-party",
-  "Most likely to be caught making out in the coat closet",
-  "Most likely to swipe right on the officiant",
-  "Most likely to start a conga line no one asked for",
-  "Most likely to accidentally reveal a secret in their speech",
-  "Most likely to end up on the dance floor shirtless",
-  "Most likely to still be single at the next wedding"
+  "be a player?",
+  "end up in jail?",
+  "leave poop stains in your toilet bowl?",
+  "have a sugar mummy?",
+  "be little spoon?",
+  "fist fight the groom?",
+  "date his cousin?",
+  "be a flasher?",
+  "be your situationship?"
 ];
 let qIndex = 0;
 let myVoteThisQ = null;
@@ -373,18 +379,25 @@ async function renderHostScreen(){
     document.getElementById('qNum').textContent = qIndex+1;
     document.getElementById('qTotal').textContent = questions.length;
     document.getElementById('qText').textContent = questions[qIndex]||'';
+    requestAnimationFrame(()=>{ document.getElementById('qText').style.opacity='1'; });
     document.getElementById('liveCount').textContent = `${voteCount} vote${voteCount!==1?'s':''} cast`;
     if(lastNav.revealed){
       document.getElementById('resultWrap').innerHTML = pieHTML;
       document.getElementById('resultWrap').style.display='flex';
       requestAnimationFrame(()=>{ document.getElementById('resultWrap').classList.add('show'); });
+      document.getElementById('revealBtn').style.opacity='0';
+      setTimeout(()=>{ document.getElementById('revealBtn').style.display='none'; }, 300);
       document.getElementById('nextBtn').style.display='inline-block';
-      document.getElementById('revealBtn').style.display='none';
+      document.getElementById('nextBtn').style.opacity='0';
+      requestAnimationFrame(()=>{ document.getElementById('nextBtn').style.opacity='1'; });
     } else {
       document.getElementById('resultWrap').style.display='none';
       document.getElementById('resultWrap').classList.remove('show');
-      document.getElementById('nextBtn').style.display='none';
+      document.getElementById('nextBtn').style.opacity='0';
+      setTimeout(()=>{ document.getElementById('nextBtn').style.display='none'; }, 300);
       document.getElementById('revealBtn').style.display='inline-block';
+      document.getElementById('revealBtn').style.opacity='0';
+      requestAnimationFrame(()=>{ document.getElementById('revealBtn').style.opacity='1'; });
     }
   }
 }
@@ -409,14 +422,29 @@ function openModal(id){
       <div class="stat"><div class="k">Fun fact</div><div class="v">${p.funfact||'—'}</div></div>
       ${p.redFlags?`<div class="stat"><div class="k">🚩 Red flags</div><div class="v">${p.redFlags}</div></div>`:''}
       ${p.greenFlags?`<div class="stat"><div class="k">🟢 Green flags</div><div class="v">${p.greenFlags}</div></div>`:''}
+      <button class="actionbtn" style="width:100%;" onclick="closeModal()">← Back to the Bridesmen</button>
     </div>`;
-  document.getElementById('modalBg').classList.add('active');
+  const bg = document.getElementById('modalBg');
+  bg.style.display='flex';
+  requestAnimationFrame(()=>{ bg.classList.add('active'); });
 }
-function closeModal(){ document.getElementById('modalBg').classList.remove('active'); }
+function closeModal(){
+  const bg = document.getElementById('modalBg');
+  bg.classList.remove('active');
+  setTimeout(()=>{ bg.style.display='none'; }, 250);
+}
 document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
 
 async function startGame(){ qIndex=0; await fbSet('nav', {phase:'voting', qIndex:0, revealed:false}); renderHostScreen(); }
-async function nextQ(){ qIndex=(qIndex+1)%questions.length; await fbSet('nav', {phase:'voting', qIndex, revealed:false}); renderHostScreen(); }
+async function nextQ(){
+  const el = document.getElementById('qText');
+  el.style.opacity='0';
+  setTimeout(async ()=>{
+    qIndex=(qIndex+1)%questions.length;
+    await fbSet('nav', {phase:'voting', qIndex, revealed:false});
+    renderHostScreen();
+  }, 250);
+}
 
 function computePieHTML(counts){
   const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
@@ -524,7 +552,9 @@ async function pollState(){
 async function loadExistingSessionIntoEditor(){
   if(!BUCKET) return;
   const p = await fbGet('profiles'); if(p) profiles = p;
-  const q = await fbGet('questions'); if(q) questions = q;
+  // NOTE: questions intentionally NOT reloaded from Firebase here — always use
+  // the current code's question list so edits to questions ship correctly.
+  // Click "Publish & Lock Profiles" to push the current list live.
   const meta = await fbGet('meta');
   if(meta){
     document.getElementById('eventTitle').value = meta.title;
