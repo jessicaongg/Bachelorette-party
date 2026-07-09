@@ -192,13 +192,17 @@ let questions = [
   "have a sugar mummy?",
   "be little spoon?",
   "fist fight the groom?",
+  "still live with his parents at 35?",
   "date his cousin?",
   "be a flasher?",
+  "be the biggest green flag?",
   "be your situationship?"
 ];
 let qIndex = 0;
 let myVoteThisQ = null;
 let lastNav = { phase:'lobby', qIndex:0, revealed:false };
+let hostRevealRenderedFor = null; // "qIndex" we've already animated the reveal for, on host screen
+let guestRevealRenderedFor = null; // same, for guest screen
 
 // ---------- smooth section transitions ----------
 function crossfade(sectionIds, targetId, tracker){
@@ -382,15 +386,19 @@ async function renderHostScreen(){
     requestAnimationFrame(()=>{ document.getElementById('qText').style.opacity='1'; });
     document.getElementById('liveCount').textContent = `${voteCount} vote${voteCount!==1?'s':''} cast`;
     if(lastNav.revealed){
-      document.getElementById('resultWrap').innerHTML = pieHTML;
-      document.getElementById('resultWrap').style.display='flex';
-      requestAnimationFrame(()=>{ document.getElementById('resultWrap').classList.add('show'); });
-      document.getElementById('revealBtn').style.opacity='0';
-      setTimeout(()=>{ document.getElementById('revealBtn').style.display='none'; }, 300);
-      document.getElementById('nextBtn').style.display='inline-block';
-      document.getElementById('nextBtn').style.opacity='0';
-      requestAnimationFrame(()=>{ document.getElementById('nextBtn').style.opacity='1'; });
+      if(hostRevealRenderedFor !== qIndex){
+        document.getElementById('resultWrap').innerHTML = pieHTML;
+        document.getElementById('resultWrap').style.display='flex';
+        requestAnimationFrame(()=>{ document.getElementById('resultWrap').classList.add('show'); });
+        document.getElementById('revealBtn').style.opacity='0';
+        setTimeout(()=>{ document.getElementById('revealBtn').style.display='none'; }, 300);
+        document.getElementById('nextBtn').style.display='inline-block';
+        document.getElementById('nextBtn').style.opacity='0';
+        requestAnimationFrame(()=>{ document.getElementById('nextBtn').style.opacity='1'; });
+        hostRevealRenderedFor = qIndex;
+      }
     } else {
+      hostRevealRenderedFor = null;
       document.getElementById('resultWrap').style.display='none';
       document.getElementById('resultWrap').classList.remove('show');
       document.getElementById('nextBtn').style.opacity='0';
@@ -533,9 +541,12 @@ async function renderGuestScreen(){
   }
   if(lastNav.phase==='voting' && lastNav.revealed){
     crossfade(guestSectionIds, 'guestResultScreen', guestTracker);
-    document.getElementById('guestResultWrap').innerHTML = pieHTML;
-    document.getElementById('guestResultWrap').classList.remove('show');
-    requestAnimationFrame(()=>{ document.getElementById('guestResultWrap').classList.add('show'); });
+    if(guestRevealRenderedFor !== qIndex){
+      document.getElementById('guestResultWrap').innerHTML = pieHTML;
+      document.getElementById('guestResultWrap').classList.remove('show');
+      requestAnimationFrame(()=>{ document.getElementById('guestResultWrap').classList.add('show'); });
+      guestRevealRenderedFor = qIndex;
+    }
     return;
   }
   crossfade(guestSectionIds, 'waitingScreen', guestTracker);
