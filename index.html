@@ -299,8 +299,8 @@ function buildEditGrid(){
       <label>Bio</label><textarea oninput="update(${p.id},'bio',this.value)">${p.bio}</textarea>
       <label>Looking for</label><input type="text" value="${p.lookingFor}" oninput="update(${p.id},'lookingFor',this.value)">
       <label>Fun fact</label><input type="text" value="${p.funfact}" oninput="update(${p.id},'funfact',this.value)">
-      <label>🚩 Red flags</label><input type="text" value="${p.redFlags}" oninput="update(${p.id},'redFlags',this.value)">
-      <label>🟢 Green flags</label><input type="text" value="${p.greenFlags}" oninput="update(${p.id},'greenFlags',this.value)">
+      <label>🚩 Red flags (one per line)</label><textarea oninput="update(${p.id},'redFlags',this.value)">${p.redFlags}</textarea>
+      <label>🟢 Green flags (one per line)</label><textarea oninput="update(${p.id},'greenFlags',this.value)">${p.greenFlags}</textarea>
     `;
     grid.appendChild(card);
   });
@@ -312,6 +312,12 @@ async function handlePhoto(e, id){
   document.getElementById(`photobox-${id}`).innerHTML = `<img src="${dataUrl}">`;
 }
 function update(id, field, val){ profiles.find(p=>p.id===id)[field] = val; }
+function bulletList(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  if(lines.length===0) return '';
+  if(lines.length===1) return lines[0];
+  return `<ul style="margin:4px 0 0; padding-left:20px;">${lines.map(l=>`<li>${l}</li>`).join('')}</ul>`;
+}
 
 // ---------- session / publish ----------
 function createSession(){
@@ -428,8 +434,8 @@ function openModal(id){
       <div class="stat"><div class="k">About</div><div class="v">${p.bio||'—'}</div></div>
       <div class="stat"><div class="k">Looking for</div><div class="v">${p.lookingFor||'—'}</div></div>
       <div class="stat"><div class="k">Fun fact</div><div class="v">${p.funfact||'—'}</div></div>
-      ${p.redFlags?`<div class="stat"><div class="k">🚩 Red flags</div><div class="v">${p.redFlags}</div></div>`:''}
-      ${p.greenFlags?`<div class="stat"><div class="k">🟢 Green flags</div><div class="v">${p.greenFlags}</div></div>`:''}
+      ${p.redFlags?`<div class="stat"><div class="k">🚩 Red flags</div><div class="v">${bulletList(p.redFlags)}</div></div>`:''}
+      ${p.greenFlags?`<div class="stat"><div class="k">🟢 Green flags</div><div class="v">${bulletList(p.greenFlags)}</div></div>`:''}
       <button class="actionbtn" style="width:100%;" onclick="closeModal()">← Back to the Bridesmen</button>
     </div>`;
   const bg = document.getElementById('modalBg');
